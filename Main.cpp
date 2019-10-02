@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
-const uint32_t g_NumBuffers = 256;
+const uint32_t g_BufferCount = 256;
+const uint32_t g_BufferSize = 16;
 
 ComPtr<ID3D12Debug> g_DebugInterface;
 ComPtr<IDXGIFactory4> g_DXGIFactory;
@@ -9,11 +10,15 @@ DXGI_ADAPTER_DESC1 g_AdapterDesc;
 ComPtr<ID3D12Device2> g_Device;
 ComPtr<ID3D12InfoQueue> g_InfoQueue;
 ComPtr<ID3D12CommandQueue> g_CommandQueue;
-ComPtr<ID3D12Resource> g_Buffers[g_NumBuffers];
+ComPtr<ID3D12Resource> g_DeviceLocalBuffers[g_BufferCount];
 ComPtr<ID3D12GraphicsCommandList> g_GraphicsCommandList;
 ComPtr<ID3D12DescriptorHeap> g_SRVDescriptorHeap;
 ComPtr<ID3D12CommandAllocator> g_CommandAllocator;
 ComPtr<ID3D12CommandList> g_CommandList;
+
+ComPtr<ID3D12Heap> g_ResourceHeap;
+ComPtr<ID3D12Heap> g_ReadbackHeap;
+ComPtr<ID3D12Heap> g_UploadHeap;
 
 void EnableDebugLayer()
 {
@@ -72,7 +77,7 @@ void InitCommandQueue()
 void InitDescriptorHeap()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-	desc.NumDescriptors = g_NumBuffers;
+	desc.NumDescriptors = g_BufferCount;
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	WIN_CALL(g_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&g_SRVDescriptorHeap)));
@@ -94,6 +99,37 @@ void DeviceFlush()
 {
 }
 
+void CreateResourceHeap(ComPtr<ID3D12Heap>& heap, D3D12_HEAP_TYPE type)
+{
+	D3D12_HEAP_DESC desc;
+	desc.SizeInBytes = g_BufferSize * g_BufferCount;
+	desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+	desc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+	desc.Properties.Type = type;
+	desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	desc.Properties.CreationNodeMask = 0;
+	desc.Properties.VisibleNodeMask = 0;
+		
+	WIN_CALL(g_Device->CreateHeap(&desc, IID_PPV_ARGS(&heap)));
+}
+
+void CreateBuffer(ComPtr<ID3D12Resource>& buffer, ComPtr<ID3D12Heap> heap, uint32_t heapOffset)
+{
+	CD3DX12_RESOURCE_DESC;
+	D3D12_RESOURCE_DESC resourceDesc;
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Alignment;
+	resourceDesc.Width;
+	resourceDesc.Height;
+	resourceDesc.DepthOrArraySize;
+	resourceDesc.MipLevels;
+	resourceDesc.Format;
+	resourceDesc.SampleDesc;
+	resourceDesc.Layout;
+	resourceDesc.Flags;
+}
+
 int main()
 {
 	EnableDebugLayer();
@@ -104,5 +140,9 @@ int main()
 	InitCommandQueue();
 	InitDescriptorHeap();
 	InitCommandAllocator();
+
+	CreateResourceHeap(g_ResourceHeap, D3D12_HEAP_TYPE_DEFAULT);
+	CreateResourceHeap(g_ReadbackHeap, D3D12_HEAP_TYPE_READBACK);
+	CreateResourceHeap(g_UploadHeap, D3D12_HEAP_TYPE_UPLOAD);
 	return 0;
 }
