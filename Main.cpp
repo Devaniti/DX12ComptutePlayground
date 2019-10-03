@@ -14,6 +14,8 @@ ComPtr<ID3D12GraphicsCommandList> g_GraphicsCommandList;
 ComPtr<ID3D12DescriptorHeap> g_SRVDescriptorHeap;
 ComPtr<ID3D12CommandAllocator> g_CommandAllocator;
 ComPtr<ID3D12CommandList> g_CommandList;
+ComPtr<ID3D12Fence> g_Fence;
+HANDLE g_FenceEvent;
 
 void EnableDebugLayer()
 {
@@ -90,8 +92,45 @@ void CreateCommandList()
 	WIN_CALL(g_CommandList.As(&g_GraphicsCommandList));
 }
 
+void CreateFence()
+{
+    WIN_CALL(g_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&g_Fence)));
+    g_FenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    assert(g_FenceEvent);
+}
+
+void SignalFence(uint64_t value)
+{
+    WIN_CALL(g_CommandQueue->Signal(g_Fence.Get(), value));
+}
+
+void WaitFence(uint64_t value)
+{
+    if (g_Fence->GetCompletedValue() >= value)
+        return;
+    WIN_CALL(g_Fence->SetEventOnCompletion(value, g_FenceEvent));
+    ::WaitForSingleObject(g_FenceEvent, INFINITE);
+}
+
 void DeviceFlush()
 {
+    static uint64_t fenceValue = 0;
+    fenceValue++;
+    SignalFence(fenceValue);
+    WaitFence(fenceValue);
+}
+
+void ExecuteCommandList()
+{
+    WIN_CALL(g_GraphicsCommandList->Close());
+    ID3D12CommandList* const commandLists[] = { g_CommandList.Get() };
+    g_CommandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+}
+
+void ResetCommandList()
+{
+    WIN_CALL(g_CommandAllocator->Reset());
+    WIN_CALL(g_GraphicsCommandList->Reset(g_CommandAllocator.Get(), nullptr));
 }
 
 int main()
@@ -104,5 +143,13 @@ int main()
 	InitCommandQueue();
 	InitDescriptorHeap();
 	InitCommandAllocator();
+    CreateCommandList();
+    CreateFence();
+    for (int i = 0; i < 10; i++)
+    {
+        ExecuteCommandList();
+        DeviceFlush();
+        ResetCommandList();
+    }
 	return 0;
 }
