@@ -1,7 +1,7 @@
 #include "stdafx.h"
 
-const uint32_t g_BufferCount = 256;
-const uint32_t g_BufferSize = 16;
+static const uint32_t g_BufferCount = 256;
+static const uint32_t g_BufferSize = 16;
 
 ComPtr<ID3D12Debug> g_DebugInterface;
 ComPtr<IDXGIFactory4> g_DXGIFactory;
@@ -156,18 +156,27 @@ void CreateResourceHeap(ComPtr<ID3D12Heap>& heap, D3D12_HEAP_TYPE type)
 
 void CreateBuffer(ComPtr<ID3D12Resource>& buffer, ComPtr<ID3D12Heap> heap, uint32_t heapOffset)
 {
-    CD3DX12_RESOURCE_DESC;
-    D3D12_RESOURCE_DESC resourceDesc;
-    resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resourceDesc.Alignment;
-    resourceDesc.Width;
-    resourceDesc.Height;
-    resourceDesc.DepthOrArraySize;
-    resourceDesc.MipLevels;
-    resourceDesc.Format;
-    resourceDesc.SampleDesc;
-    resourceDesc.Layout;
-    resourceDesc.Flags;
+    D3D12_RESOURCE_DESC bufferDesc;
+    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufferDesc.Alignment = 0;
+    bufferDesc.Width = g_BufferSize;
+    bufferDesc.Height = 1;
+    bufferDesc.DepthOrArraySize = 1;
+    bufferDesc.MipLevels = 1;
+    bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+    bufferDesc.SampleDesc.Count = 1;
+    bufferDesc.SampleDesc.Quality = 0;
+    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    bufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    g_Device->CreatePlacedResource(heap.Get(), heapOffset, &bufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&buffer));
+}
+
+void CreateAllBuffers()
+{
+    for (int i = 0; i < g_BufferCount; i++)
+    {
+        CreateBuffer(g_DeviceLocalBuffers[i], g_ResourceHeap, i * g_BufferSize);
+    }
 }
 
 int main()
@@ -183,6 +192,7 @@ int main()
     CreateResourceHeap(g_ResourceHeap, D3D12_HEAP_TYPE_DEFAULT);
     CreateResourceHeap(g_ReadbackHeap, D3D12_HEAP_TYPE_READBACK);
     CreateResourceHeap(g_UploadHeap, D3D12_HEAP_TYPE_UPLOAD);
+    CreateAllBuffers();
     CreateCommandList();
     CreateFence();
     for (int i = 0; i < 10; i++)
