@@ -14,6 +14,9 @@
 
 #include "d3d12.h"
 
+#pragma warning(push)
+#pragma warning(disable: 26495)
+
 #if defined( __cplusplus )
 
 struct CD3DX12_DEFAULT {};
@@ -3436,5 +3439,7 @@ private:
 #endif // #ifndef D3DX12_NO_STATE_OBJECT_HELPERS
 
 #endif // defined( __cplusplus )
+
+#pragma warning(pop)
 
 #endif //__D3DX12_H__

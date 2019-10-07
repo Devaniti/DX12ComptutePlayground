@@ -19,6 +19,12 @@
     <Filter Include="PrecompiledHeader">
       <UniqueIdentifier>{33ca3f32-9a45-478e-b243-19204c0f5393}</UniqueIdentifier>
     </Filter>
+    <Filter Include="D3D12Wrappers">
+      <UniqueIdentifier>{b75ad727-6ab1-4b97-8dc4-84d912c48966}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DataStructures">
+      <UniqueIdentifier>{83beee85-1199-4bfe-bcc6-9ec1b20b0a1b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="BufferWrite.hlsl">
@@ -32,6 +38,9 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>PrecompiledHeader</Filter>
     </ClCompile>
+    <ClCompile Include="D3D12Wrappers\HeapAllocator.cpp">
+      <Filter>D3D12Wrappers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -41,6 +50,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DataStructures\SegmentTree.h">
+      <Filter>DataStructures</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D12Wrappers\HeapAllocator.h">
+      <Filter>D3D12Wrappers</Filter>
+    </ClInclude>
+    <ClInclude Include="intrinsics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="algo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

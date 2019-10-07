@@ -1,5 +1,7 @@
 #pragma once
 
+#define CACHELINE_SIZE 64
+
 #define WIN_CALL(hr) assert(SUCCEEDED(hr))
 #define PRINT(message) (std::cout << message << std::endl)
 #define PRINTW(message) (std::wcout << message << std::endl)
