@@ -1,26 +1,44 @@
 #include "stdafx.h"
 
+#include "D3D12Wrappers/HeapAllocator.h"
+
 static const uint32_t g_BufferCount = 256;
 static const uint32_t g_BufferSize = 16;
 
-ComPtr<ID3D12Debug> g_DebugInterface;
-ComPtr<IDXGIFactory4> g_DXGIFactory;
-ComPtr<IDXGIAdapter4> g_Adapter;
-DXGI_ADAPTER_DESC1 g_AdapterDesc;
-ComPtr<ID3D12Device2> g_Device;
-ComPtr<ID3D12InfoQueue> g_InfoQueue;
-ComPtr<ID3D12CommandQueue> g_CommandQueue;
-ComPtr<ID3D12Resource> g_DeviceLocalBuffers[g_BufferCount];
+ComPtr<ID3D12Debug>               g_DebugInterface;
+ComPtr<IDXGIFactory4>             g_DXGIFactory;
+ComPtr<IDXGIAdapter4>             g_Adapter;
+DXGI_ADAPTER_DESC1                g_AdapterDesc;
+ComPtr<ID3D12Device2>             g_Device;
+ComPtr<ID3D12InfoQueue>           g_InfoQueue;
+ComPtr<ID3D12CommandQueue>        g_CommandQueue;
+ComPtr<ID3D12Resource>            g_DeviceLocalBuffers[g_BufferCount];
 ComPtr<ID3D12GraphicsCommandList> g_GraphicsCommandList;
-ComPtr<ID3D12DescriptorHeap> g_SRVDescriptorHeap;
-ComPtr<ID3D12CommandAllocator> g_CommandAllocator;
-ComPtr<ID3D12CommandList> g_CommandList;
-ComPtr<ID3D12Fence> g_Fence;
+ComPtr<ID3D12DescriptorHeap>      g_SRVDescriptorHeap;
+ComPtr<ID3D12CommandAllocator>    g_CommandAllocator;
+ComPtr<ID3D12CommandList>         g_CommandList;
+ComPtr<ID3D12Fence>               g_Fence;
 HANDLE g_FenceEvent;
 
-ComPtr<ID3D12Heap> g_ResourceHeap;
-ComPtr<ID3D12Heap> g_ReadbackHeap;
-ComPtr<ID3D12Heap> g_UploadHeap;
+HeapAllocator* g_HeapAllocator;
+
+void Cleanup()
+{
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+    g_DXGIFactory.Reset();
+}
 
 void EnableDebugLayer()
 {
@@ -90,6 +108,22 @@ void InitCommandAllocator()
     WIN_CALL(g_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&g_CommandAllocator)));
 }
 
+void InitHeapAllocator()
+{
+    g_HeapAllocator = new HeapAllocator(g_Device, D3D12_HEAP_TYPE_DEFAULT, 1024 * 1024 * 128);
+}
+
+void AllocateBuffers()
+{
+    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(g_BufferSize, D3D12_RESOURCE_FLAG_NONE);
+    g_DeviceLocalBuffers[0] = g_HeapAllocator->Allocate(desc);
+}
+
+void DeleteHeapAllocator()
+{
+    delete g_HeapAllocator;
+}
+
 void CreateCommandList()
 {
     g_CommandList.Reset();
@@ -138,48 +172,6 @@ void ResetCommandList()
     WIN_CALL(g_GraphicsCommandList->Reset(g_CommandAllocator.Get(), nullptr));
 }
 
-
-void CreateResourceHeap(ComPtr<ID3D12Heap>& heap, D3D12_HEAP_TYPE type)
-{
-    D3D12_HEAP_DESC desc;
-    desc.SizeInBytes = g_BufferSize * g_BufferCount;
-    desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-    desc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
-    desc.Properties.Type = type;
-    desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    desc.Properties.CreationNodeMask = 0;
-    desc.Properties.VisibleNodeMask = 0;
-
-    WIN_CALL(g_Device->CreateHeap(&desc, IID_PPV_ARGS(&heap)));
-}
-
-void CreateBuffer(ComPtr<ID3D12Resource>& buffer, ComPtr<ID3D12Heap> heap, uint32_t heapOffset)
-{
-    D3D12_RESOURCE_DESC bufferDesc;
-    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    bufferDesc.Alignment = 0;
-    bufferDesc.Width = g_BufferSize;
-    bufferDesc.Height = 1;
-    bufferDesc.DepthOrArraySize = 1;
-    bufferDesc.MipLevels = 1;
-    bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
-    bufferDesc.SampleDesc.Count = 1;
-    bufferDesc.SampleDesc.Quality = 0;
-    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    bufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-    D3D12_RESOURCE_ALLOCATION_INFO allocationInfo = g_Device->GetResourceAllocationInfo(0, 1, &bufferDesc);
-    g_Device->CreatePlacedResource(heap.Get(), heapOffset, &bufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&buffer));
-}
-
-void CreateAllBuffers()
-{
-    for (int i = 0; i < g_BufferCount; i++)
-    {
-        CreateBuffer(g_DeviceLocalBuffers[i], g_ResourceHeap, i * g_BufferSize);
-    }
-}
-
 int main()
 {
     EnableDebugLayer();
@@ -190,18 +182,17 @@ int main()
     InitCommandQueue();
     InitDescriptorHeap();
     InitCommandAllocator();
-    CreateResourceHeap(g_ResourceHeap, D3D12_HEAP_TYPE_DEFAULT);
-    CreateResourceHeap(g_ReadbackHeap, D3D12_HEAP_TYPE_READBACK);
-    CreateResourceHeap(g_UploadHeap, D3D12_HEAP_TYPE_UPLOAD);
-    CreateAllBuffers();
+    InitHeapAllocator();
     CreateCommandList();
     CreateFence();
+    AllocateBuffers();
     for (int i = 0; i < 10; i++)
     {
         ExecuteCommandList();
         DeviceFlush();
         ResetCommandList();
     }
+    DeleteHeapAllocator();
 
     return 0;
 }

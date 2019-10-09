@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string.h>
+#include <list>
 #include <intrin.h>
 #include <Windows.h>
 #include <d3d12.h>
