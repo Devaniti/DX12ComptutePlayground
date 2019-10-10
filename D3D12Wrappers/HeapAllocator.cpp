@@ -56,4 +56,5 @@ ComPtr<ID3D12Resource> HeapAllocator::Allocate(D3D12_RESOURCE_DESC resourceDesc)
 void HeapAllocator::Deallocate(ComPtr<ID3D12Resource>& resource)
 {
     resource.Reset();
+    // TODO add freed memory to freelist
 }

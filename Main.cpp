@@ -2,8 +2,9 @@
 
 #include "D3D12Wrappers/HeapAllocator.h"
 
-static const uint32_t g_BufferCount = 256;
-static const uint32_t g_BufferSize = 16;
+static const size_t g_TextureWidth = 1920;
+static const size_t g_TextureHeight = 1920;
+static const size_t g_HeapSize = 1024 * 1024 * 128;
 
 ComPtr<ID3D12Debug>               g_DebugInterface;
 ComPtr<IDXGIFactory4>             g_DXGIFactory;
@@ -110,6 +111,12 @@ void InitCommandAllocator()
 
 void InitHeapAllocator()
 {
+    g_HeapAllocator = new HeapAllocator(g_Device, D3D12_HEAP_TYPE_DEFAULT, g_HeapSize);
+}
+
+void InitTextures()
+{
+    D3D12_RESOURCE_DESC textureIn;
     g_HeapAllocator = new HeapAllocator(g_Device, D3D12_HEAP_TYPE_DEFAULT, 1024 * 1024 * 128);
 }
 
@@ -183,6 +190,7 @@ int main()
     InitDescriptorHeap();
     InitCommandAllocator();
     InitHeapAllocator();
+    InitTextures();
     CreateCommandList();
     CreateFence();
     AllocateBuffers();
