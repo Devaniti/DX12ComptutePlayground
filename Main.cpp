@@ -3,8 +3,9 @@
 #include "D3D12Wrappers/HeapAllocator.h"
 
 static const size_t g_TextureWidth = 1920;
-static const size_t g_TextureHeight = 1920;
+static const size_t g_TextureHeight = 1080;
 static const size_t g_HeapSize = 1024 * 1024 * 128;
+static const size_t g_ResourcesCount = 2;
 
 ComPtr<ID3D12Debug>               g_DebugInterface;
 ComPtr<IDXGIFactory4>             g_DXGIFactory;
@@ -13,7 +14,8 @@ DXGI_ADAPTER_DESC1                g_AdapterDesc;
 ComPtr<ID3D12Device2>             g_Device;
 ComPtr<ID3D12InfoQueue>           g_InfoQueue;
 ComPtr<ID3D12CommandQueue>        g_CommandQueue;
-ComPtr<ID3D12Resource>            g_DeviceLocalBuffers[g_BufferCount];
+ComPtr<ID3D12Resource>            g_TextureIn;
+ComPtr<ID3D12Resource>            g_TextureOut;
 ComPtr<ID3D12GraphicsCommandList> g_GraphicsCommandList;
 ComPtr<ID3D12DescriptorHeap>      g_SRVDescriptorHeap;
 ComPtr<ID3D12CommandAllocator>    g_CommandAllocator;
@@ -25,20 +27,17 @@ HeapAllocator* g_HeapAllocator;
 
 void Cleanup()
 {
+    g_DebugInterface.Reset();
     g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
-    g_DXGIFactory.Reset();
+    g_InfoQueue.Reset();
+    g_CommandQueue.Reset();
+    g_TextureIn.Reset();
+    g_TextureOut.Reset();
+    g_GraphicsCommandList.Reset();
+    g_SRVDescriptorHeap.Reset();
+    g_CommandAllocator.Reset();
+    g_CommandList.Reset();
+    g_Fence.Reset();
 }
 
 void EnableDebugLayer()
@@ -78,10 +77,19 @@ void InitDevice()
 
 void EnableDebugForDevice()
 {
+#if defined(_DEBUG)
     WIN_CALL(g_Device.As(&g_InfoQueue));
     WIN_CALL(g_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE));
     WIN_CALL(g_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE));
     WIN_CALL(g_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE));
+#endif
+}
+
+void ReportLiveObjects()
+{
+    ComPtr<ID3D12DebugDevice> debugDevice;
+    WIN_CALL(g_Device.As(&debugDevice));
+    debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_IGNORE_INTERNAL);
 }
 
 void InitCommandQueue()
@@ -98,7 +106,7 @@ void InitCommandQueue()
 void InitDescriptorHeap()
 {
     D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-    desc.NumDescriptors = g_BufferCount;
+    desc.NumDescriptors = g_ResourcesCount;
     desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
     WIN_CALL(g_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&g_SRVDescriptorHeap)));
@@ -116,14 +124,9 @@ void InitHeapAllocator()
 
 void InitTextures()
 {
-    D3D12_RESOURCE_DESC textureIn;
-    g_HeapAllocator = new HeapAllocator(g_Device, D3D12_HEAP_TYPE_DEFAULT, 1024 * 1024 * 128);
-}
-
-void AllocateBuffers()
-{
-    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(g_BufferSize, D3D12_RESOURCE_FLAG_NONE);
-    g_DeviceLocalBuffers[0] = g_HeapAllocator->Allocate(desc);
+    D3D12_RESOURCE_DESC textureDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_B8G8R8A8_UNORM, g_TextureWidth, g_TextureHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    g_TextureIn = g_HeapAllocator->Allocate(textureDesc);
+    g_TextureOut = g_HeapAllocator->Allocate(textureDesc);
 }
 
 void DeleteHeapAllocator()
@@ -193,7 +196,6 @@ int main()
     InitTextures();
     CreateCommandList();
     CreateFence();
-    AllocateBuffers();
     for (int i = 0; i < 10; i++)
     {
         ExecuteCommandList();
@@ -201,6 +203,8 @@ int main()
         ResetCommandList();
     }
     DeleteHeapAllocator();
+    Cleanup();
+    ReportLiveObjects();
 
     return 0;
 }

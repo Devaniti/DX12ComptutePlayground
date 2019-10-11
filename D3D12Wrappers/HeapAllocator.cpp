@@ -8,7 +8,7 @@ HeapAllocator::HeapAllocator(ComPtr<ID3D12Device> device, D3D12_HEAP_TYPE type, 
 	D3D12_HEAP_DESC desc;
 	desc.SizeInBytes = size;
 	desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-	desc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+	desc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
 	desc.Properties.Type = type;
 	desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 	desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
