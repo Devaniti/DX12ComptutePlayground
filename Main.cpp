@@ -25,6 +25,14 @@ HANDLE g_FenceEvent;
 
 HeapAllocator* g_HeapAllocator;
 
+void ResetDevice()
+{
+    ComPtr<ID3D12DebugDevice> debugDevice;
+    WIN_CALL(g_Device.As(&debugDevice));
+    g_Device.Reset();
+    debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_IGNORE_INTERNAL);
+}
+
 void Cleanup()
 {
     g_DebugInterface.Reset();
@@ -38,6 +46,7 @@ void Cleanup()
     g_CommandAllocator.Reset();
     g_CommandList.Reset();
     g_Fence.Reset();
+    ResetDevice();
 }
 
 void EnableDebugLayer()
@@ -83,13 +92,6 @@ void EnableDebugForDevice()
     WIN_CALL(g_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE));
     WIN_CALL(g_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE));
 #endif
-}
-
-void ReportLiveObjects()
-{
-    ComPtr<ID3D12DebugDevice> debugDevice;
-    WIN_CALL(g_Device.As(&debugDevice));
-    debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_IGNORE_INTERNAL);
 }
 
 void InitCommandQueue()
@@ -204,7 +206,6 @@ int main()
     }
     DeleteHeapAllocator();
     Cleanup();
-    ReportLiveObjects();
 
     return 0;
 }
