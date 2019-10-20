@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string.h>
 #include <list>
+#include <fstream>
 #include <intrin.h>
 #include <Windows.h>
 #include <d3d12.h>
@@ -13,6 +14,7 @@
 
 using Microsoft::WRL::ComPtr;
 
+#include "ProjectConfig.h"
 #include "d3dx12.h"
 #include "common.h"
 #include "intrinsics.h"

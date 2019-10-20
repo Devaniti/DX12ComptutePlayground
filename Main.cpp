@@ -13,6 +13,7 @@ ComPtr<IDXGIAdapter4>             g_Adapter;
 DXGI_ADAPTER_DESC1                g_AdapterDesc;
 ComPtr<ID3D12Device2>             g_Device;
 ComPtr<ID3D12InfoQueue>           g_InfoQueue;
+ComPtr<ID3D12RootSignature>       g_RootSignature;
 ComPtr<ID3D12CommandQueue>        g_CommandQueue;
 ComPtr<ID3D12Resource>            g_TextureIn;
 ComPtr<ID3D12Resource>            g_TextureOut;
@@ -21,16 +22,17 @@ ComPtr<ID3D12DescriptorHeap>      g_SRVDescriptorHeap;
 ComPtr<ID3D12CommandAllocator>    g_CommandAllocator;
 ComPtr<ID3D12CommandList>         g_CommandList;
 ComPtr<ID3D12Fence>               g_Fence;
+ComPtr<ID3D12PipelineState>       g_PipelineState;
 HANDLE g_FenceEvent;
 
 HeapAllocator* g_HeapAllocator;
 
 void ResetDevice()
 {
-    ComPtr<ID3D12DebugDevice> debugDevice;
-    WIN_CALL(g_Device.As(&debugDevice));
+    //ComPtr<ID3D12DebugDevice> debugDevice;
+    //WIN_CALL(g_Device.As(&debugDevice));
     g_Device.Reset();
-    debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_IGNORE_INTERNAL);
+    //debugDevice->ReportLiveDeviceObjects(D3D12_RLDO_IGNORE_INTERNAL);
 }
 
 void Cleanup()
@@ -71,7 +73,11 @@ void InitFactory()
 void InitAdapter()
 {
     ComPtr<IDXGIAdapter1> adapter1;
+#ifndef USE_WARP_DEVICE
     WIN_CALL(g_DXGIFactory->EnumAdapters1(0, &adapter1));
+#else
+    WIN_CALL(g_DXGIFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter1)));
+#endif
     WIN_CALL(adapter1.As(&g_Adapter));
 
     g_Adapter->GetDesc1(&g_AdapterDesc);
@@ -92,6 +98,36 @@ void EnableDebugForDevice()
     WIN_CALL(g_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE));
     WIN_CALL(g_InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE));
 #endif
+}
+
+void InitRootSignature()
+{
+    D3D12_ROOT_PARAMETER1 rootParameters[2];
+    for (size_t i = 0; i < 2; i++)
+    {
+        rootParameters[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+        rootParameters[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        rootParameters[i].Descriptor.ShaderRegister = i;
+        rootParameters[i].Descriptor.RegisterSpace = 0;
+        rootParameters[i].Descriptor.Flags =  i == 0 ? D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC : D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE;
+    }
+
+    D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc;
+    rootSigDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    rootSigDesc.Desc_1_1.NumParameters = 2;
+    rootSigDesc.Desc_1_1.NumStaticSamplers = 0;
+    rootSigDesc.Desc_1_1.pParameters = rootParameters;
+    rootSigDesc.Desc_1_1.pStaticSamplers = nullptr;
+    rootSigDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+    ComPtr<ID3DBlob> serializedSignature;
+    WIN_CALL(D3D12SerializeVersionedRootSignature(&rootSigDesc, serializedSignature.GetAddressOf(), nullptr));
+    g_Device->CreateRootSignature(0, serializedSignature->GetBufferPointer(), serializedSignature->GetBufferSize(), IID_PPV_ARGS(&g_RootSignature));
 }
 
 void InitCommandQueue()
@@ -129,6 +165,10 @@ void InitTextures()
     D3D12_RESOURCE_DESC textureDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_B8G8R8A8_UNORM, g_TextureWidth, g_TextureHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     g_TextureIn = g_HeapAllocator->Allocate(textureDesc);
     g_TextureOut = g_HeapAllocator->Allocate(textureDesc);
+}
+
+void InitTextureVies()
+{
 }
 
 void DeleteHeapAllocator()
@@ -184,6 +224,43 @@ void ResetCommandList()
     WIN_CALL(g_GraphicsCommandList->Reset(g_CommandAllocator.Get(), nullptr));
 }
 
+std::vector<char> ReadFile(std::string filename)
+{
+    std::ifstream file("TextureProcess.cso", std::ios::binary | std::ios::ate);
+    assert(file);
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    assert(file);
+
+    std::vector<char> buffer(size);
+    file.read(buffer.data(), size);
+    assert(file);
+    return buffer;
+}
+
+void CreatePSO()
+{
+    std::vector<char> csBytecode = ReadFile("TextureProcess.cso");
+    D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc;
+    psoDesc.pRootSignature = g_RootSignature.Get();
+    psoDesc.CS.pShaderBytecode = csBytecode.data();
+    psoDesc.CS.BytecodeLength = csBytecode.size();
+    psoDesc.NodeMask = 0;
+    psoDesc.CachedPSO.pCachedBlob = nullptr;
+    psoDesc.CachedPSO.CachedBlobSizeInBytes = 0;
+#ifndef USE_WARP_DEVICE
+    psoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+#else
+    psoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_TOOL_DEBUG;
+#endif
+    g_Device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&g_PipelineState));
+}
+
+void RunShader()
+{
+    g_GraphicsCommandList->SetComputeRootSignature(g_RootSignature.Get());
+}
+
 int main()
 {
     EnableDebugLayer();
@@ -191,15 +268,19 @@ int main()
     InitAdapter();
     InitDevice();
     EnableDebugForDevice();
+    InitRootSignature();
     InitCommandQueue();
     InitDescriptorHeap();
     InitCommandAllocator();
     InitHeapAllocator();
     InitTextures();
+    InitTextureVies();
+    CreatePSO();
     CreateCommandList();
     CreateFence();
     for (int i = 0; i < 10; i++)
     {
+        RunShader();
         ExecuteCommandList();
         DeviceFlush();
         ResetCommandList();
