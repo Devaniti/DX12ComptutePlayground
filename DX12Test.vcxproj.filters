@@ -62,6 +62,9 @@
     <ClInclude Include="ProjectConfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="D3D12Wrappers\DXGIFormatSizes.h">
+      <Filter>D3D12Wrappers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="RootSig.hlsli">

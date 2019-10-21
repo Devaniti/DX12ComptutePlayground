@@ -4,5 +4,4 @@
                 "DENY_DOMAIN_SHADER_ROOT_ACCESS | " \
                 "DENY_GEOMETRY_SHADER_ROOT_ACCESS | " \
                 "DENY_PIXEL_SHADER_ROOT_ACCESS), " \
-                "UAV(u0, flags = DATA_STATIC), " \
-                "UAV(u1, flags = DATA_VOLATILE), "
+                "DescriptorTable(UAV(u0, numDescriptors = 2, flags = DATA_STATIC)) "

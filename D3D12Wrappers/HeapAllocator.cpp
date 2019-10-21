@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "HeapAllocator.h"
 
-HeapAllocator::HeapAllocator(ComPtr<ID3D12Device> device, D3D12_HEAP_TYPE type, size_t size) 
+HeapAllocator::HeapAllocator(ComPtr<ID3D12Device> device, D3D12_HEAP_TYPE type, size_t size, D3D12_HEAP_FLAGS heapFlags /* = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES*/)
     : m_Device(device)
     , m_FreeList({ {0, size} })
     , m_Size(size)
@@ -9,7 +9,7 @@ HeapAllocator::HeapAllocator(ComPtr<ID3D12Device> device, D3D12_HEAP_TYPE type, 
     D3D12_HEAP_DESC desc;
     desc.SizeInBytes = size;
     desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-    desc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+    desc.Flags = heapFlags;
     desc.Properties.Type = type;
     desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
     desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -19,7 +19,7 @@ HeapAllocator::HeapAllocator(ComPtr<ID3D12Device> device, D3D12_HEAP_TYPE type, 
     WIN_CALL(m_Device->CreateHeap(&desc, IID_PPV_ARGS(&m_Heap)));
 }
 
-ComPtr<ID3D12Resource> HeapAllocator::Allocate(D3D12_RESOURCE_DESC resourceDesc)
+ComPtr<ID3D12Resource> HeapAllocator::Allocate(D3D12_RESOURCE_DESC resourceDesc, D3D12_RESOURCE_STATES resourceState /*= D3D12_RESOURCE_STATE_COMMON*/)
 {
     D3D12_RESOURCE_ALLOCATION_INFO allocationInfo = m_Device->GetResourceAllocationInfo(0, 1, &resourceDesc);
     size_t size = allocationInfo.SizeInBytes;
@@ -50,7 +50,7 @@ ComPtr<ID3D12Resource> HeapAllocator::Allocate(D3D12_RESOURCE_DESC resourceDesc)
     }
 
     ComPtr<ID3D12Resource> resource;
-    WIN_CALL(m_Device->CreatePlacedResource(m_Heap.Get(), offset, &resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource)));
+    WIN_CALL(m_Device->CreatePlacedResource(m_Heap.Get(), offset, &resourceDesc, resourceState, nullptr, IID_PPV_ARGS(&resource)));
     return resource;
 }
 
