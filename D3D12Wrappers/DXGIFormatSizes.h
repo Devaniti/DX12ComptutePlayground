@@ -1,7 +1,7 @@
 #pragma once
 #include "stdafx.h"
 
-size_t BitsPerPixel(DXGI_FORMAT fmt)
+constexpr size_t BitsPerPixel(DXGI_FORMAT fmt)
 {
     switch (static_cast<int>(fmt))
     {

@@ -257,7 +257,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandleAt(size_t i)
     return handle;
 }
 
-void InitTextureVies()
+void InitTextureViews()
 {
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavViewDesc;
     uavViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -358,6 +358,57 @@ void RunShader()
     g_GraphicsCommandList->Dispatch(g_TextureWidth, g_TextureHeight, 1);
 }
 
+void TransitionResource(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter)
+{
+    if (stateBefore == stateAfter)
+        return;
+
+    D3D12_RESOURCE_BARRIER resourceBarrier;
+    resourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    resourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    resourceBarrier.Transition.pResource = resource.Get();
+    resourceBarrier.Transition.StateBefore = stateBefore;
+    resourceBarrier.Transition.StateAfter = stateAfter;
+    resourceBarrier.Transition.Subresource = 0;
+    g_GraphicsCommandList->ResourceBarrier(1, &resourceBarrier);
+}
+
+void LoadDataToTexture()
+{
+    //TransitionResource(g_UploadBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COMMON);
+    D3D12_RANGE mapRange;
+    mapRange.Begin = 0;
+    mapRange.End = 0;
+    void* data;
+    g_UploadBuffer->Map(0, &mapRange, &data);
+    constexpr size_t bytesPerPixel = BitsPerPixel(DXGI_FORMAT_R8G8B8A8_UNORM) / 8;
+    char* pixelData = (char*)data;
+    for (size_t y = 0; y < g_TextureHeight; y++)
+    {
+        for (size_t x = 0; x < g_TextureWidth; x++)
+        {
+            char currentPixel[bytesPerPixel] = { x & 255, y & 255, (x + y) & 255,0 };
+            memcpy(pixelData, currentPixel, bytesPerPixel);
+        }
+    }
+    g_UploadBuffer->Unmap(0, &mapRange);
+    TransitionResource(g_Textures[0], D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+    D3D12_TEXTURE_COPY_LOCATION sourceLocation;
+    sourceLocation.pResource = g_UploadBuffer.Get();
+    sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    sourceLocation.PlacedFootprint.Offset = 0;
+    sourceLocation.PlacedFootprint.Footprint.Depth = 0;
+    sourceLocation.PlacedFootprint.Footprint.Height = 1;
+
+    ////////////////////////////////////
+
+    D3D12_TEXTURE_COPY_LOCATION destLocation;
+    g_GraphicsCommandList->CopyTextureRegion(&destLocation, 0, 0, 0, &destLocation, nullptr);
+    ExecuteCommandList();
+    DeviceFlush();
+    ResetCommandList();
+}
+
 int main()
 {
     EnableDebugLayer();
@@ -372,10 +423,11 @@ int main()
     InitCommandAllocator();
     InitHeapAllocators();
     InitTextures();
-    InitTextureVies();
+    InitTextureViews();
     CreatePSO();
     CreateCommandList();
     CreateFence();
+    LoadDataToTexture();
     for (int i = 0; i < 10; i++)
     {
         RunShader();
