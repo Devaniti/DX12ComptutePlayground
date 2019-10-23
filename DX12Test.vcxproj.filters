@@ -25,6 +25,12 @@
     <Filter Include="DataStructures">
       <UniqueIdentifier>{83beee85-1199-4bfe-bcc6-9ec1b20b0a1b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Extensions">
+      <UniqueIdentifier>{666ca18f-9159-4061-a185-acb6ff71e468}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{3284014d-fe2a-4e00-9e95-1a8511675e23}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -35,6 +41,9 @@
     </ClCompile>
     <ClCompile Include="D3D12Wrappers\HeapAllocator.cpp">
       <Filter>D3D12Wrappers</Filter>
+    </ClCompile>
+    <ClCompile Include="Extensions\RenderDocWrapper.cpp">
+      <Filter>Extensions</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -64,6 +73,12 @@
     </ClInclude>
     <ClInclude Include="D3D12Wrappers\DXGIFormatSizes.h">
       <Filter>D3D12Wrappers</Filter>
+    </ClInclude>
+    <ClInclude Include="Extensions\RenderDocWrapper.h">
+      <Filter>Extensions</Filter>
+    </ClInclude>
+    <ClInclude Include="External\renderdoc_app.h">
+      <Filter>External</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

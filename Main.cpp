@@ -2,11 +2,14 @@
 
 #include "D3D12Wrappers/HeapAllocator.h"
 #include "D3D12Wrappers/DXGIFormatSizes.h"
+#include "Extensions/RenderDocWrapper.h"
 
 static const size_t g_TextureWidth = 1920;
 static const size_t g_TextureHeight = 1080;
 static const size_t g_HeapSize = 1024 * 1024 * 128;
 static const size_t g_ResourcesCount = 2;
+
+static const DXGI_FORMAT g_TextureFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 ComPtr<ID3D12Debug>               g_DebugInterface;
 ComPtr<IDXGIFactory4>             g_DXGIFactory;
@@ -31,6 +34,13 @@ HANDLE g_FenceEvent;
 HeapAllocator* g_DefaultHeapAllocator;
 HeapAllocator* g_UploadHeapAllocator;
 HeapAllocator* g_ReadbackHeapAllocator;
+
+void SetDebugName(ComPtr<ID3D12Object> object, LPCWSTR name)
+{
+    object->SetName(name);
+}
+
+#define SetVariableNameAsDebugName(object) SetDebugName(object, L#object)
 
 void ResetDevice()
 {
@@ -103,6 +113,7 @@ void InitAdapter()
 void InitDevice()
 {
     WIN_CALL(D3D12CreateDevice(g_Adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&g_Device)));
+    SetVariableNameAsDebugName(g_Device);
 }
 
 void InitDeviceConstants()
@@ -169,6 +180,7 @@ void InitRootSignature()
         MyAssert(0);
     }
     g_Device->CreateRootSignature(0, serializedSignature->GetBufferPointer(), serializedSignature->GetBufferSize(), IID_PPV_ARGS(&g_RootSignature));
+    SetVariableNameAsDebugName(g_RootSignature);
 }
 
 void InitCommandQueue()
@@ -180,6 +192,7 @@ void InitCommandQueue()
     desc.NodeMask = 0;
 
     WIN_CALL(g_Device->CreateCommandQueue(&desc, IID_PPV_ARGS(&g_CommandQueue)));
+    SetVariableNameAsDebugName(g_CommandQueue);
 }
 
 void InitDescriptorHeap()
@@ -191,19 +204,20 @@ void InitDescriptorHeap()
     desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
     WIN_CALL(g_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&g_SRVDescriptorHeap)));
+    SetVariableNameAsDebugName(g_SRVDescriptorHeap);
 }
 
 void InitCommandAllocator()
 {
     WIN_CALL(g_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&g_CommandAllocator)));
+    SetVariableNameAsDebugName(g_CommandAllocator);
 }
 
 void InitHeapAllocators()
 {
     g_DefaultHeapAllocator = new HeapAllocator(g_Device, D3D12_HEAP_TYPE_DEFAULT, g_HeapSize);
     g_UploadHeapAllocator = new HeapAllocator(g_Device, D3D12_HEAP_TYPE_UPLOAD, g_HeapSize, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);
-    g_ReadbackHeapAllocator = new HeapAllocator(g_Device, D3D12_HEAP_TYPE_READBACK, g_HeapSize, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);
-    
+    g_ReadbackHeapAllocator = new HeapAllocator(g_Device, D3D12_HEAP_TYPE_READBACK, g_HeapSize, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);    
 }
 
 void InitTextures()
@@ -215,19 +229,21 @@ void InitTextures()
     textureDesc.Height = g_TextureHeight;
     textureDesc.DepthOrArraySize = 1;
     textureDesc.MipLevels = 0;
-    textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    textureDesc.Format = g_TextureFormat;
     textureDesc.SampleDesc.Count = 1;
     textureDesc.SampleDesc.Quality = 0;
     textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     g_Textures[0] = g_DefaultHeapAllocator->Allocate(textureDesc);
+    SetVariableNameAsDebugName(g_Textures[0]);
     g_Textures[1] = g_DefaultHeapAllocator->Allocate(textureDesc);
+    SetVariableNameAsDebugName(g_Textures[1]);
 
     D3D12_RESOURCE_DESC bufferDesc;
     bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     bufferDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-    bufferDesc.Width = g_TextureWidth * g_TextureHeight * BitsPerPixel(DXGI_FORMAT_B8G8R8A8_UNORM) / 8;
+    bufferDesc.Width = g_TextureWidth * g_TextureHeight * BitsPerPixel(g_TextureFormat) / 8;
     bufferDesc.Height = 1;
     bufferDesc.DepthOrArraySize = 1;
     bufferDesc.MipLevels = 1;
@@ -238,7 +254,9 @@ void InitTextures()
     bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
     g_UploadBuffer = g_UploadHeapAllocator->Allocate(bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ);
+    SetVariableNameAsDebugName(g_UploadBuffer);
     g_ReadbackBuffer = g_ReadbackHeapAllocator->Allocate(bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST);
+    SetVariableNameAsDebugName(g_ReadbackBuffer);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandleAt(size_t i)
@@ -260,7 +278,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandleAt(size_t i)
 void InitTextureViews()
 {
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavViewDesc;
-    uavViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    uavViewDesc.Format = g_TextureFormat;
     uavViewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     uavViewDesc.Texture2D.MipSlice = 0;
     uavViewDesc.Texture2D.PlaneSlice = 0;
@@ -274,6 +292,7 @@ void CreateCommandList()
     g_CommandList.Reset();
     WIN_CALL(g_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, g_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&g_CommandList)));
     WIN_CALL(g_CommandList.As(&g_GraphicsCommandList));
+    SetVariableNameAsDebugName(g_GraphicsCommandList);
 }
 
 void CreateFence()
@@ -281,6 +300,7 @@ void CreateFence()
     WIN_CALL(g_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&g_Fence)));
     g_FenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
     MyAssert(g_FenceEvent);
+    SetVariableNameAsDebugName(g_Fence);
 }
 
 void SignalFence(uint64_t value)
@@ -354,6 +374,7 @@ void RunShader()
     g_GraphicsCommandList->SetComputeRootSignature(g_RootSignature.Get());
     ID3D12DescriptorHeap* heaps[] = { g_SRVDescriptorHeap.Get() };
     g_GraphicsCommandList->SetDescriptorHeaps(1, heaps);
+    g_GraphicsCommandList->SetComputeRootDescriptorTable(0, GetGPUDescriptorHandleAt(0));
     g_GraphicsCommandList->SetPipelineState(g_PipelineState.Get());
     g_GraphicsCommandList->Dispatch(g_TextureWidth, g_TextureHeight, 1);
 }
@@ -375,20 +396,20 @@ void TransitionResource(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES s
 
 void LoadDataToTexture()
 {
-    //TransitionResource(g_UploadBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COMMON);
     D3D12_RANGE mapRange;
     mapRange.Begin = 0;
-    mapRange.End = 0;
+    mapRange.End = g_TextureWidth * g_TextureHeight * BitsPerPixel(g_TextureFormat) / 8;
     void* data;
     g_UploadBuffer->Map(0, &mapRange, &data);
-    constexpr size_t bytesPerPixel = BitsPerPixel(DXGI_FORMAT_R8G8B8A8_UNORM) / 8;
-    char* pixelData = (char*)data;
+    constexpr size_t bytesPerPixel = BitsPerPixel(g_TextureFormat) / 8;
+    unsigned char* pixelData = (unsigned char*)data;
     for (size_t y = 0; y < g_TextureHeight; y++)
     {
         for (size_t x = 0; x < g_TextureWidth; x++)
         {
-            char currentPixel[bytesPerPixel] = { x & 255, y & 255, (x + y) & 255,0 };
+            unsigned char currentPixel[bytesPerPixel] = { (float(x) / g_TextureWidth) * 255, (float(y) / g_TextureHeight) * 255, 0, 0 };
             memcpy(pixelData, currentPixel, bytesPerPixel);
+            pixelData += bytesPerPixel;
         }
     }
     g_UploadBuffer->Unmap(0, &mapRange);
@@ -397,20 +418,69 @@ void LoadDataToTexture()
     sourceLocation.pResource = g_UploadBuffer.Get();
     sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
     sourceLocation.PlacedFootprint.Offset = 0;
-    sourceLocation.PlacedFootprint.Footprint.Depth = 0;
-    sourceLocation.PlacedFootprint.Footprint.Height = 1;
+    sourceLocation.PlacedFootprint.Footprint.Depth = 1;
+    sourceLocation.PlacedFootprint.Footprint.Height = g_TextureHeight;
+    sourceLocation.PlacedFootprint.Footprint.RowPitch = bytesPerPixel * g_TextureWidth;
+    sourceLocation.PlacedFootprint.Footprint.Width = g_TextureWidth;
+    sourceLocation.PlacedFootprint.Footprint.Format = g_TextureFormat;
 
     ////////////////////////////////////
 
     D3D12_TEXTURE_COPY_LOCATION destLocation;
-    g_GraphicsCommandList->CopyTextureRegion(&destLocation, 0, 0, 0, &destLocation, nullptr);
+    destLocation.pResource = g_Textures[0].Get();
+    destLocation.SubresourceIndex = 0;
+    destLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+    g_GraphicsCommandList->CopyTextureRegion(&destLocation, 0, 0, 0, &sourceLocation, nullptr);
     ExecuteCommandList();
     DeviceFlush();
     ResetCommandList();
 }
 
+void ReadBackDataFromTexture()
+{
+    constexpr size_t bytesPerPixel = BitsPerPixel(g_TextureFormat) / 8;
+    TransitionResource(g_Textures[1], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    D3D12_TEXTURE_COPY_LOCATION destLocation;
+    destLocation.pResource = g_ReadbackBuffer.Get();
+    destLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    destLocation.PlacedFootprint.Offset = 0;
+    destLocation.PlacedFootprint.Footprint.Depth = 1;
+    destLocation.PlacedFootprint.Footprint.Height = g_TextureHeight;
+    destLocation.PlacedFootprint.Footprint.RowPitch = bytesPerPixel * g_TextureWidth;
+    destLocation.PlacedFootprint.Footprint.Width = g_TextureWidth;
+    destLocation.PlacedFootprint.Footprint.Format = g_TextureFormat;
+
+    ////////////////////////////////////
+
+    D3D12_TEXTURE_COPY_LOCATION sourceLocation;
+    sourceLocation.pResource = g_Textures[1].Get();
+    sourceLocation.SubresourceIndex = 0;
+    sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+    g_GraphicsCommandList->CopyTextureRegion(&destLocation, 0, 0, 0, &sourceLocation, nullptr);
+    ExecuteCommandList();
+    DeviceFlush();
+    ResetCommandList();
+
+    D3D12_RANGE mapRange;
+    mapRange.Begin = 0;
+    mapRange.End = g_TextureWidth * g_TextureHeight * BitsPerPixel(g_TextureFormat) / 8;
+    D3D12_RANGE writtenRange = {};
+    void* data;
+    g_ReadbackBuffer->Map(0, &mapRange, &data);
+    g_ReadbackBuffer->Unmap(0, &writtenRange);
+}
+
+void TransitionStatesBeforeRender()
+{
+    TransitionResource(g_Textures[0], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    TransitionResource(g_Textures[1], D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+}
+
 int main()
 {
+    InitializeRenderDocExtension();
     EnableDebugLayer();
     InitFactory();
     InitAdapter();
@@ -427,14 +497,18 @@ int main()
     CreatePSO();
     CreateCommandList();
     CreateFence();
+    StartRenderDocCapture(g_Device);
     LoadDataToTexture();
-    for (int i = 0; i < 10; i++)
+    TransitionStatesBeforeRender();
+    for (int i = 0; i < 1; i++)
     {
         RunShader();
         ExecuteCommandList();
         DeviceFlush();
         ResetCommandList();
     }
+    ReadBackDataFromTexture();
+    EndRenderDocCapture(g_Device);
     Cleanup();
 
     return 0;
