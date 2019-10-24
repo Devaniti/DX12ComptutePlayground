@@ -45,7 +45,7 @@ ComPtr<ID3D12Resource> HeapAllocator::Allocate(D3D12_RESOURCE_DESC resourceDesc,
 
     if (offset == size_t(-1))
     {
-        assert(0);
+        MyAssert(0);
         return nullptr;
     }
 
