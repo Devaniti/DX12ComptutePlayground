@@ -45,6 +45,12 @@
     <ClCompile Include="Extensions\RenderDocWrapper.cpp">
       <Filter>Extensions</Filter>
     </ClCompile>
+    <ClCompile Include="Extensions\ImageWrapper.cpp">
+      <Filter>Extensions</Filter>
+    </ClCompile>
+    <ClCompile Include="External\stb_impl.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -78,6 +84,15 @@
       <Filter>Extensions</Filter>
     </ClInclude>
     <ClInclude Include="External\renderdoc_app.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="Extensions\ImageWrapper.h">
+      <Filter>Extensions</Filter>
+    </ClInclude>
+    <ClInclude Include="External\stb_image.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\stb_image_write.h">
       <Filter>External</Filter>
     </ClInclude>
   </ItemGroup>

@@ -3,6 +3,7 @@
 #include "D3D12Wrappers/HeapAllocator.h"
 #include "D3D12Wrappers/DXGIFormatSizes.h"
 #include "Extensions/RenderDocWrapper.h"
+#include "Extensions/ImageWrapper.h"
 
 static const size_t g_TextureWidth = 1920;
 static const size_t g_TextureHeight = 1080;
@@ -396,22 +397,18 @@ void TransitionResource(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES s
 
 void LoadDataToTexture()
 {
+    constexpr size_t bytesPerPixel = BitsPerPixel(g_TextureFormat) / 8;
+    Image input = ReadImage("input.png");
+    MyAssert(input.w == g_TextureWidth);
+    MyAssert(input.h == g_TextureHeight);
+    MyAssert(input.ch == 4);
+    MyAssert(bytesPerPixel == 4);
     D3D12_RANGE mapRange;
     mapRange.Begin = 0;
-    mapRange.End = g_TextureWidth * g_TextureHeight * BitsPerPixel(g_TextureFormat) / 8;
+    mapRange.End = g_TextureWidth * g_TextureHeight * bytesPerPixel;
     void* data;
     g_UploadBuffer->Map(0, &mapRange, &data);
-    constexpr size_t bytesPerPixel = BitsPerPixel(g_TextureFormat) / 8;
-    unsigned char* pixelData = (unsigned char*)data;
-    for (size_t y = 0; y < g_TextureHeight; y++)
-    {
-        for (size_t x = 0; x < g_TextureWidth; x++)
-        {
-            unsigned char currentPixel[bytesPerPixel] = { (float(x) / g_TextureWidth) * 255, (float(y) / g_TextureHeight) * 255, 0, 0 };
-            memcpy(pixelData, currentPixel, bytesPerPixel);
-            pixelData += bytesPerPixel;
-        }
-    }
+    memcpy(data, input.data, mapRange.End);
     g_UploadBuffer->Unmap(0, &mapRange);
     TransitionResource(g_Textures[0], D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
     D3D12_TEXTURE_COPY_LOCATION sourceLocation;
@@ -470,6 +467,12 @@ void ReadBackDataFromTexture()
     void* data;
     g_ReadbackBuffer->Map(0, &mapRange, &data);
     g_ReadbackBuffer->Unmap(0, &writtenRange);
+    Image output;
+    output.data = (unsigned char*)data;
+    output.w = g_TextureWidth;
+    output.h = g_TextureHeight;
+    output.ch = 4;
+    WriteImage("output.png", output);
 }
 
 void TransitionStatesBeforeRender()

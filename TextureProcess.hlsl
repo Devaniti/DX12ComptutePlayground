@@ -33,5 +33,11 @@ float3 Noise3D(float2 seed)
 [numthreads(1, 1, 1)]
 void main( uint3 threadID : SV_DispatchThreadID )
 {
-    outputTexture[threadID.xy] = Noise4D(threadID.xy);
+    uint2 uv = threadID.xy;
+    uint2 offset = 0;
+    uint2 loadLocation = clamp(uv + offset, 0, uint2(1919,1079));
+
+    float noise = (Noise1D(uv) - 0.5) * 0.25;
+
+    outputTexture[threadID.xy] = inputTexture[loadLocation] + float4(noise.xxx, 0);
 }
